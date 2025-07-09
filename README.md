@@ -35,3 +35,56 @@ The service will be available at `http://localhost:5000`.
 6. Visit the generated URL to see `{"message": "Hello from Flask on Render!"}`.
 
 That's it! 🎉
+
+## 🗄️ Database Setup (PostgreSQL)
+
+The service now uses PostgreSQL (via SQLAlchemy) and expects a `DATABASE_URL` environment variable.
+
+### Local development
+
+1. Spin up Postgres locally (Docker example):
+
+   ```bash
+   docker run --name bitespeed-postgres -e POSTGRES_PASSWORD=secret -e POSTGRES_DB=bitespeed -p 5432:5432 -d postgres:16
+   ```
+
+2. Set the `DATABASE_URL` before running the app:
+
+   ```bash
+   export DATABASE_URL="postgresql://postgres:secret@localhost:5432/bitespeed"
+   python app.py
+   ```
+
+Tables are auto-created on first run.
+
+### Render deployment
+
+1. Create a **PostgreSQL** service on Render.
+2. In your Flask web service, go to **Environment → Add Environment Variable** and pick the database’s **Internal Database URL** as `DATABASE_URL`.
+3. Redeploy. The table will be created automatically.
+
+## 🔀 /identify Endpoint
+
+```
+POST /identify
+Content-Type: application/json
+{
+  "email": "john@example.com",
+  "phoneNumber": 1234567890
+}
+```
+
+Returns:
+
+```
+{
+  "contact": {
+    "primaryContatctId": 1,
+    "emails": ["john@example.com"],
+    "phoneNumbers": ["1234567890"],
+    "secondaryContactIds": []
+  }
+}
+```
+
+Call it with either `email`, `phoneNumber`, or both. The service merges/links duplicates based on the rules in the problem statement.
