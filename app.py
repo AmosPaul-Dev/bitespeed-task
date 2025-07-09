@@ -74,19 +74,24 @@ def create_app():
                 else:
                     primary = candidate
 
-                # Ensure every contact sharing same email or phone is linked to this primary
-                related_matches = Contact.query.filter(
-                    or_(Contact.email == primary.email, Contact.phoneNumber == primary.phoneNumber)
-                ).filter(Contact.id != primary.id).all()
-
-                for c in related_matches:
-                    if c.linkPrecedence != "secondary" or c.linkedId != primary.id:
+                # Convert every matched contact (except primary) to secondary linked to primary
+                for c in contacts:
+                    if c.id != primary.id and (
+                        c.linkPrecedence != "secondary" or c.linkedId != primary.id
+                    ):
                         c.linkPrecedence = "secondary"
                         c.linkedId = primary.id
 
-                # Create a secondary if incoming data introduces new email/phone in this cluster
-                existing_emails = {c.email for c in contacts if c.email}
-                existing_phones = {c.phoneNumber for c in contacts if c.phoneNumber}
+                # Flush so that updates are visible when we query cluster
+                db.session.flush()
+
+                # Create a secondary if incoming data introduces new email/phone not present in current cluster
+                cluster_contacts = Contact.query.filter(
+                    or_(Contact.id == primary.id, Contact.linkedId == primary.id)
+                ).all()
+
+                existing_emails = {c.email for c in cluster_contacts if c.email}
+                existing_phones = {c.phoneNumber for c in cluster_contacts if c.phoneNumber}
 
                 if (email and email not in existing_emails) or (
                     phone_no and phone_no not in existing_phones
@@ -99,7 +104,7 @@ def create_app():
                     )
                     db.session.add(new_secondary)
 
-            db.session.flush()
+                db.session.flush()
 
             # Build response payload – include primary and all linked secondaries ordered by createdAt
             group = (
